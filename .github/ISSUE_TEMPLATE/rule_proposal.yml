@@ -1,0 +1,46 @@
+name: Правило стиля
+description: Предложить оборот для config/style-rules.ru.json
+labels: [rules]
+body:
+  - type: markdown
+    value: |
+      Правило принимается только с реальным примером. Без примера почти
+      наверняка будет стрелять по нормальному тексту.
+  - type: input
+    id: phrase
+    attributes:
+      label: Оборот или регулярное выражение
+    validations:
+      required: true
+  - type: input
+    id: discipline
+    attributes:
+      label: Дисциплина
+      placeholder: "экономика / биоинформатика / социология / ..."
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Пример из реального текста (без личных данных)
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Почему это шаблонный оборот, а не нормальный академический стиль
+    validations:
+      required: true
+  - type: textarea
+    id: counterexamples
+    attributes:
+      label: Где этот оборот уместен (чтобы не сломать нормальные тексты)
+    validations:
+      required: false
+  - type: checkboxes
+    id: check
+    attributes:
+      label: Проверено
+      options:
+        - label: "examples/minimal/main.tex по-прежнему проходит G1"
+        - label: "тесты проходят (make test)"

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/scorobogach/Academic-work/schemas/decision.schema.json",
+  "title": "Decision",
+  "description": "Принятое решение. Поле reopen_if обязательно по смыслу: без него невозможно «не возвращаться к решённому».",
+  "type": "object",
+  "required": ["decision_id", "question"],
+  "additionalProperties": false,
+  "properties": {
+    "decision_id": { "type": "string", "minLength": 1 },
+    "project": { "type": "string" },
+    "date": { "type": "string", "format": "date" },
+    "question": { "type": "string", "minLength": 3 },
+    "chosen": { "type": "string" },
+    "rationale": { "type": "string" },
+    "rejected": { "type": "string", "description": "Что отклонили и почему" },
+    "scope": { "type": "string", "description": "project | section:... | gate:... | lesson" },
+    "supersedes": { "type": "string", "description": "decision_id, который это решение заменяет" },
+    "evidence_refs": {
+      "oneOf": [
+        { "type": "array", "items": { "type": "string" } },
+        { "type": "string", "description": "JSON-массив в виде строки" }
+      ]
+    },
+    "journal_refs": {
+      "oneOf": [
+        { "type": "array", "items": { "type": "string" } },
+        { "type": "string" }
+      ]
+    },
+    "status": { "type": "string", "enum": ["active", "superseded", "reopened"], "default": "active" },
+    "reopen_if": { "type": "string", "description": "Условие, при котором вопрос открывается снова" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}

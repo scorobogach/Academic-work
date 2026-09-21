@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: Тесты (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Юнит-тесты
+        run: python3 -m unittest discover -s tests -v
+      - name: MCP-сервер отвечает на рукопожатие
+        run: |
+          printf '%s\n%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+            | python3 scripts/mcp_server.py | tee /tmp/out.txt
+          grep -q 'academic-journal' /tmp/out.txt
+          grep -q 'journal.append' /tmp/out.txt
+
+  gates:
+    name: Детерминированные гейты на примере
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Инициализация хранилища
+        run: python3 scripts/journal_cli.py init --db /tmp/j.db --journal-dir /tmp/j --project ci
+      - name: G0 гигиена
+        run: python3 scripts/journal_cli.py run-gate G0 --file examples/minimal/main.tex --db /tmp/j.db --project ci
+      - name: G1 стиль
+        run: python3 scripts/journal_cli.py run-gate G1 --file examples/minimal/main.tex --db /tmp/j.db --project ci
+      - name: G3 библиография (офлайн, без сети)
+        run: python3 scripts/journal_cli.py run-gate G3 --tex examples/minimal/main.tex --bib examples/minimal/refs.bib --db /tmp/j.db --project ci
+      - name: G8 рисунки и подписи
+        run: python3 scripts/journal_cli.py run-gate G8 --file examples/minimal/main.tex --values examples/minimal/analysis/results.json --db /tmp/j.db --project ci
+      - name: G5 числа
+        run: python3 scripts/journal_cli.py run-gate G5 --file examples/minimal/main.tex --values examples/minimal/analysis/results.json --db /tmp/j.db --project ci
+      - name: G1 должен ловить «воду» (пример с плохим текстом)
+        run: |
+          set +e
+          python3 scripts/journal_cli.py run-gate G1 --file examples/slop-demo.md --db /tmp/j.db --project ci
+          test $? -eq 1
+      - name: Целостность журнала
+        run: python3 scripts/journal_cli.py verify --db /tmp/j.db --journal-dir /tmp/j
+
+  canary:
+    name: Canary-тест контура
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Подмешать ложные элементы, прогнать гейты, посчитать recall
+        run: |
+          cp examples/minimal/main.tex examples/minimal/refs.bib /tmp/
+          make canary-run MANUSCRIPT=/tmp/main.tex BIB=/tmp/refs.bib \
+               VALUES=examples/minimal/analysis/results.json DB=/tmp/canary.db PROJECT=ci
+      - name: Отчёт по канаркам
+        if: always()
+        run: cat reports/gates/canary-G1.json || true
+
+  selfcheck:
+    name: Самопроверка документации
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Внутренние ссылки существуют
+        run: python3 scripts/check_links.py
+      - name: JSON-файлы валидны
+        run: |
+          python3 - <<'PY'
+          import glob, json, sys
+          bad = []
+          for path in glob.glob("schemas/*.json") + glob.glob("config/*.json") + glob.glob("examples/**/*.json", recursive=True):
+              try:
+                  with open(path, encoding="utf-8") as fh:
+                      json.load(fh)
+              except Exception as exc:
+                  bad.append((path, exc))
+          for path, exc in bad:
+              print("BAD", path, exc)
+          sys.exit(1 if bad else 0)
+          PY

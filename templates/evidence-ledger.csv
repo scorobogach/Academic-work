@@ -1,0 +1,4 @@
+source_id,doi,citation,year,type,trust_tier,retrieved_at,retriever,pdf_sha256,local_path,access,license,metadata_verified,notes
+S-001,10.1000/xyz123,"Smith J., Doe A. Reproducibility in computational experiments",2020,article,primary,2026-09-21,tool:citecheck,9f2c…,literature/smith2020.pdf,OA,CC-BY,1,
+S-002,,"Иванов И. И. Открытые данные в прикладных исследованиях",2024,article,secondary,2026-09-21,human,,literature/ivanov2024.pdf,subscription,,0,"нет DOI — требуется ручная проверка"
+S-003,10.2000/abc456,"Petrov P. Registered reports: a meta-study",2025,preprint,preprint,2026-09-21,tool:openalex,,literature/petrov2025.pdf,OA,CC-BY,1,"препринт: убедиться, что есть опубликованная версия"

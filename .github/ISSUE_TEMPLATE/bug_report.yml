@@ -1,0 +1,45 @@
+name: Ошибка
+description: Что-то работает не так
+labels: [bug]
+body:
+  - type: markdown
+    value: |
+      **Не вставляйте** в issue фрагменты реальных рукописей, журналов диалогов,
+      персональные данные и неопубликованные результаты. Используйте
+      `examples/minimal/` или синтетический пример.
+  - type: textarea
+    id: what
+    attributes:
+      label: Что произошло
+      description: Команда, файл, ожидание, факт
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Минимальный воспроизводимый пример
+      description: Команда целиком + минимальный файл (без личных данных)
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Версия Python и коммит репозитория
+      placeholder: "Python 3.11.2, commit 417525c"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Область
+      options:
+        - Журнал (hash-chain, verify)
+        - Реестры (claims/evidence/decisions)
+        - Гейты (G0 G1 G3 G5)
+        - MCP-сервер
+        - CLI
+        - Документация
+        - Другое
+    validations:
+      required: true

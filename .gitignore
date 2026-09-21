@@ -1,0 +1,40 @@
+# --- личные данные: никогда не коммитим ---
+# Полный журнал диалогов и БД памяти содержат персональные данные,
+# неопубликованные результаты и чужие черновики.
+.academic/
+journal/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+.private/
+SIGN-OFF.md
+reports/gates/
+
+# --- резервные копии и временные файлы ---
+*.bak
+*.tmp
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.idea/
+.vscode/
+.DS_Store
+
+# --- артефакты LaTeX (исходники .tex/.bib коммитим) ---
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.run.xml
+*.bcf
+
+# --- локальные MCP-конфиги с абсолютными путями ---
+.mcp.json
