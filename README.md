@@ -4,7 +4,7 @@
 
 **Инфраструктура научной работы с ИИ-ассистентами: журнал, проверяемость, память.**
 
-[![тесты](https://img.shields.io/badge/tests-71%20passed-brightgreen)](tests/)
+[![тесты](https://img.shields.io/badge/tests-94%20passed-brightgreen)](tests/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue)](scripts/)
 [![зависимости](https://img.shields.io/badge/dependencies-stdlib%20only-brightgreen)](#почему-только-стандартная-библиотека)
 [![MCP](https://img.shields.io/badge/MCP-Claude%20%7C%20Codex%20%7C%20Cursor-purple)](scripts/mcp_server.py)
@@ -39,7 +39,7 @@ git clone https://github.com/scorobogach/Academic-work.git
 cd Academic-work
 
 # 1. убедиться, что всё работает (Python 3.9+, без установки зависимостей)
-make test                      # 71 тест
+make test                      # 94 теста
 
 # 2. создать личное хранилище (БД + журнал лежат вне репозитория)
 make init                      # ~/.academic/journal.db и ~/.academic/journal/
@@ -75,6 +75,8 @@ Academic-work/
 │   │   ├── canary.py            # GX: подмешивание ложных элементов и recall контура
 │   │   ├── export.py            # экспорт реестров в CSV/Markdown
 │   │   ├── disclosure.py        # генератор раздела «Использование ИИ» из журнала
+│   │   ├── figures.py           # G8: рисунки, подписи, метки, свежесть файлов
+│   │   ├── bibsync.py           # синхронизация .bib ↔ реестр evidence
 │   │   ├── latex.py             # парсеры .tex/.bib: цитаты, секции, таблицы, числа
 │   │   └── resume.py            # контекст-пак «не возвращаться к решённому»
 │   ├── mcp_server.py            # MCP-сервер (stdio, JSON-RPC 2.0)
@@ -113,6 +115,7 @@ Academic-work/
 | **G5** | `numbers` | каждое число в тексте **и в таблицах** трассируется на `results.json` | скрипт | ⚠️ настраивается |
 | **G6** | `reproducibility` | таблицы и фигуры пересобираются из сырых данных одной командой | `make reproduce` | ✅ |
 | **G7** | `disclosure` | лог использования ИИ, раздел disclosure, конфликт интересов, человеческая подпись | `make disclosure` + человек | ✅ |
+| **G8** | `figures` | рисунки: файл существует, есть подпись и метка, числа трассируются, рисунок не старше данных | скрипт | ✅ |
 | **GX** | `canary` | recall контура: подмешанные ложные утверждения и ссылки должны быть найдены | скрипт | ✅ при recall < 0.8 |
 
 Отдельно, **раз в месяц и перед сдачей**: `make canary-run` — в копию черновика
@@ -144,8 +147,9 @@ make canary-run MANUSCRIPT=manuscript/main.tex BIB=manuscript/refs.bib \
 | `text.check` | быстрые проверки G0+G1 прямо в диалоге |
 
 Тот же набор доступен из CLI: `python3 scripts/journal_cli.py --help`.
-Дополнительные команды: `gate-quote` (разовая сверка цитаты), `run-gate G4`,
-`export` (CSV/Markdown), `canary` / `canary-check` (GX), `disclosure`.
+Дополнительные команды: `gate-quote` (разовая сверка цитаты), `run-gate G4/G8`,
+`export` (CSV/Markdown), `canary` / `canary-check` (GX), `disclosure`,
+`bib-import` / `bib-export` (синхронизация .bib с реестром источников).
 
 ---
 
@@ -211,9 +215,11 @@ ARS) подключаются снаружи и не являются обяза
 - [x] **Экспорт реестров в CSV/Markdown** для вложения в рукопись и ответ рецензенту
 - [x] **Canary-генератор (GX)**: подмешивание ложных утверждений, ссылок и чисел + recall
 - [x] **Генератор disclosure** из машиночитаемого лога использования ИИ
-- [ ] G4 для изображений: проверка подписей к рисункам против данных
+- [x] **G8: рисунки и подписи** — файл, подпись, метка, упоминание в тексте, числа, свежесть
+- [x] **Синхронизация .bib ↔ реестр evidence** (импорт с угадыванием trust_tier, экспорт только проверенного)
+- [ ] G4 для таблиц: сверка чисел внутри `tabular` с данными построчно
 - [ ] Адаптер PostgreSQL (тот же SQL, другой DSN)
-- [ ] Импорт/экспорт BibTeX ↔ реестр evidence в обе стороны
+- [ ] Импорт журнала из переписки агентов (ChatGPT/Claude export → journal.jsonl)
 
 ---
 

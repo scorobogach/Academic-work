@@ -22,6 +22,9 @@
   python3 scripts/journal_cli.py canary --file draft.md --seed 42
   python3 scripts/journal_cli.py canary-check --manifest draft.canary.json --g1 r/G1.json --g3 r/G3.json --g5 r/G5.json
   python3 scripts/journal_cli.py disclosure --out ai-disclosure.md
+  python3 scripts/journal_cli.py run-gate G8 --file main.tex --values analysis/results.json
+  python3 scripts/journal_cli.py bib-import --bib manuscript/refs.bib
+  python3 scripts/journal_cli.py bib-export --out manuscript/refs.verified.bib
 """
 from __future__ import annotations
 
@@ -34,10 +37,12 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from academic_journal import (  # noqa: E402
+    bibsync,
     canary as canary_mod,
     db,
     disclosure as disclosure_mod,
     export as export_mod,
+    figures as figures_mod,
     gates as gates_mod,
     latex,
     quote as quote_mod,
@@ -148,6 +153,14 @@ def cmd_run_gate(args) -> int:
     elif gate == "G4":
         result = quote_mod.check_claims(conn, args.project if args.project else None,
                                         policy=gates_mod.load_policy(args.policy))
+    elif gate == "G8":
+        text = open(os.path.expanduser(args.file), encoding="utf-8").read()
+        kind = "tex" if (args.file or "").endswith(".tex") else "md"
+        base = args.base or os.path.dirname(os.path.abspath(os.path.expanduser(args.file)))
+        values = latex.load_values(args.values) if args.values else None
+        result = figures_mod.check_figures(text, values, base_dir=base, kind=kind,
+                                           policy=gates_mod.load_policy(args.policy),
+                                           results_path=os.path.expanduser(args.values) if args.values else "")
     else:
         print("Гейт %s не детерминированный: G2/G4/G6/G7 выполняются агентом или человеком, "
               "результат фиксируется через `gate-record`" % gate, file=sys.stderr)
@@ -357,6 +370,25 @@ def cmd_disclosure(args) -> int:
     return 0 if result["ok"] else 1
 
 
+def cmd_bib_import(args) -> int:
+    conn = db.connect(args.db)
+    stats = bibsync.import_bib(conn, args.bib, project=args.project, default_trust=args.trust)
+    print("импортировано: %(imported)d, обновлено: %(updated)d, всего записей: %(total)d" % stats)
+    if not args.no_verify_hint:
+        print("")
+        print("Все записи помечены metadata_verified=0: импорт не проверяет метаданные.")
+        print("Прогоните: make gate-bib-online  (проверка DOI через Crossref)")
+    return 0
+
+
+def cmd_bib_export(args) -> int:
+    conn = db.connect(args.db)
+    result = bibsync.export_bib(conn, args.out, only_verified=not args.all, project=args.project)
+    print("записано: %s" % result["written"])
+    print("записей: %d, пропущено: %d" % (result["records"], result["skipped"]))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="journal_cli", description="Academic-work: журнал, реестры и гейты")
     p.add_argument("--db", default=DEFAULT_DB)
@@ -431,12 +463,24 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("--out", help="файл для готового раздела")
     d.set_defaults(func=cmd_disclosure)
 
+    b = sub.add_parser("bib-import", help="импортировать .bib в реестр evidence")
+    b.add_argument("--bib", required=True)
+    b.add_argument("--trust", help="принудительный trust_tier для всех записей")
+    b.add_argument("--no-verify-hint", action="store_true")
+    b.set_defaults(func=cmd_bib_import)
+
+    be = sub.add_parser("bib-export", help="выгрузить проверенный реестр обратно в .bib")
+    be.add_argument("--out", required=True)
+    be.add_argument("--all", action="store_true", help="включая непроверенные записи")
+    be.set_defaults(func=cmd_bib_export)
+
     g = sub.add_parser("run-gate")
-    g.add_argument("gate", choices=["G0", "G1", "G3", "G4", "G5"])
+    g.add_argument("gate", choices=["G0", "G1", "G3", "G4", "G5", "G8"])
     g.add_argument("--file", help="файл рукописи (.tex/.md) для G0/G1/G5")
     g.add_argument("--tex", help="корневой .tex для G3")
     g.add_argument("--bib", help=".bib для G3")
-    g.add_argument("--values", help="results.json для G5")
+    g.add_argument("--values", help="results.json для G5/G8")
+    g.add_argument("--base", help="каталог рисунков для G8 (по умолчанию — каталог файла)")
     g.add_argument("--online", action="store_true", help="G3: проверять DOI через Crossref")
     g.add_argument("--rules")
     g.add_argument("--policy")

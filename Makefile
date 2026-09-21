@@ -8,6 +8,7 @@ JOURNAL ?= $(HOME)/.academic/journal
 PROJECT ?= default
 MANUSCRIPT ?= manuscript/main.tex
 BIB        ?= manuscript/refs.bib
+BIB_VERIFIED ?= manuscript/refs.verified.bib
 VALUES     ?= analysis/results.json
 REPORTS    := reports/gates
 EXPORT_DIR ?= export
@@ -19,8 +20,8 @@ QUOTE      ?= ""
 LOCATOR    ?= ""
 
 .PHONY: help init resume journal-verify gates gate-hygiene gate-style gate-bib gate-numbers \
-        gate-bib-online gate-claims gate-quote export canary canary-check disclosure \
-        reproduce test clean
+        gate-bib-online gate-claims gate-quote gate-figures bib-import bib-export \
+        export canary canary-check disclosure reproduce test clean
 
 help: ## показать справку
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -92,6 +93,17 @@ canary-check: ## посчитать recall контура по отчётам г
 	$(CLI) canary-check --db $(DB) --project $(PROJECT) --manifest $(CANARY_MANIFEST) \
 		--g1 $(REPORTS)/G1-style.json --g3 $(REPORTS)/G3-bibliography.json \
 		--g5 $(REPORTS)/G5-numbers.json --record
+
+gate-figures: ## G8: рисунки, подписи, метки, свежесть файлов
+	@mkdir -p $(REPORTS)
+	$(CLI) run-gate G8 --db $(DB) --project $(PROJECT) --file $(MANUSCRIPT) --values $(VALUES) \
+		--report $(REPORTS)/G8-figures.json --record
+
+bib-import: ## импортировать .bib в реестр evidence (metadata_verified=0)
+	$(CLI) bib-import --db $(DB) --project $(PROJECT) --bib $(BIB)
+
+bib-export: ## выгрузить проверенный реестр обратно в .bib
+	$(CLI) bib-export --db $(DB) --project $(PROJECT) --out $(BIB_VERIFIED)
 
 disclosure: ## собрать раздел «Использование ИИ» из журнала
 	$(CLI) disclosure --db $(DB) --journal-dir $(JOURNAL) --out $(DISCLOSURE)

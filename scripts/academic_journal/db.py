@@ -115,6 +115,16 @@ CREATE INDEX IF NOT EXISTS idx_gates_started ON gates(started_at);
 """
 
 
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Добавить колонки, появившиеся после создания БД (старые файлы не ломаются)."""
+    for table, columns in EXTRA_COLUMNS.items():
+        existing = {r["name"] for r in conn.execute("PRAGMA table_info(%s)" % table)}
+        for column, ddl in columns.items():
+            if column not in existing:
+                conn.execute("ALTER TABLE %s ADD COLUMN %s %s" % (table, column, ddl))
+    conn.commit()
+
+
 def connect(path: str) -> sqlite3.Connection:
     path = os.path.expanduser(path)
     parent = os.path.dirname(path)
@@ -123,6 +133,7 @@ def connect(path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    _migrate(conn)
     return conn
 
 
@@ -201,10 +212,17 @@ def _fts_query(query: str) -> str:
 # ---------- evidence ----------
 
 EVIDENCE_FIELDS = [
-    "source_id", "doi", "pmid", "url", "citation", "year", "type", "trust_tier",
-    "retrieved_at", "retriever", "pdf_sha256", "local_path", "access", "license",
-    "metadata_verified", "notes",
+    "source_id", "project", "doi", "pmid", "url", "citation", "author", "title", "venue",
+    "year", "type", "trust_tier", "retrieved_at", "retriever", "pdf_sha256",
+    "local_path", "access", "license", "metadata_verified", "notes",
 ]
+
+# новые колонки добавляются точечно, чтобы старые БД продолжали работать
+EXTRA_COLUMNS = {
+    "evidence": {"author": "TEXT", "title": "TEXT", "venue": "TEXT", "project": "TEXT"},
+    "claims": {},
+    "decisions": {},
+}
 
 
 def _existing(conn: sqlite3.Connection, table: str, key_field: str, key: Any) -> Dict[str, Any]:

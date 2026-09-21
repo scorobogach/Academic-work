@@ -46,6 +46,8 @@ jobs:
         run: python3 scripts/journal_cli.py run-gate G1 --file examples/minimal/main.tex --db /tmp/j.db --project ci
       - name: G3 библиография (офлайн, без сети)
         run: python3 scripts/journal_cli.py run-gate G3 --tex examples/minimal/main.tex --bib examples/minimal/refs.bib --db /tmp/j.db --project ci
+      - name: G8 рисунки и подписи
+        run: python3 scripts/journal_cli.py run-gate G8 --file examples/minimal/main.tex --values examples/minimal/analysis/results.json --db /tmp/j.db --project ci
       - name: G5 числа
         run: python3 scripts/journal_cli.py run-gate G5 --file examples/minimal/main.tex --values examples/minimal/analysis/results.json --db /tmp/j.db --project ci
       - name: G1 должен ловить «воду» (пример с плохим текстом)

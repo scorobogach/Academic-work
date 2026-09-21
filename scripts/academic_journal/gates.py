@@ -19,7 +19,7 @@ import unicodedata
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field, asdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 from . import latex
 
@@ -317,20 +317,12 @@ def check_numbers(text: str, values: Optional[Dict[str, Any]] = None, policy: Op
     cleaned = latex.strip_tex_noise(text) if kind == "tex" else text
     found = latex.extract_numbers(cleaned)
 
-    if values and "numbers" not in values:
-        allowed_values = set()
-        for v in values.values():
-            allowed_values.update(_as_number_strings(v))
-    else:
-        allowed_values = set()
-        for v in (values or {}).get("numbers", []):
-            allowed_values.update(_as_number_strings(v))
-    allowed_values |= allow
+    allowed_values = declared_numbers(values, allow)
 
     findings: List[Finding] = []
     unmatched = []
     for item in found:
-        if any(rx.search(item["context"]) for rx in ignored_context):
+        if any(rx.search(item.get("near", item["context"])) for rx in ignored_context):
             continue
         if item["value"] not in allowed_values:
             unmatched.append(item)
@@ -350,7 +342,7 @@ def check_numbers(text: str, values: Optional[Dict[str, Any]] = None, policy: Op
     if bool(cfg.get("check_tables", True)):
         for block in latex.extract_table_blocks(text):
             for item in latex.extract_numbers(block):
-                if any(rx.search(item["context"]) for rx in ignored_context):
+                if any(rx.search(item.get("near", item["context"])) for rx in ignored_context):
                     continue
                 if item["value"] not in allowed_values:
                     table_untraced += 1
@@ -371,6 +363,19 @@ def check_numbers(text: str, values: Optional[Dict[str, Any]] = None, policy: Op
         duration_ms=int((_timer() - started) * 1000),
         inputs_sha=_sha256_text(text),
     )
+
+
+def declared_numbers(values: Optional[Dict[str, Any]], allow: Optional[Iterable[str]] = None) -> set:
+    """Множество числовых значений, объявленных в results.json (плюс разрешённые бытовые)."""
+    allowed: set = set()
+    if values and "numbers" not in values:
+        for value in values.values():
+            allowed.update(_as_number_strings(value))
+    else:
+        for value in (values or {}).get("numbers", []):
+            allowed.update(_as_number_strings(value))
+    allowed |= set(allow or [])
+    return allowed
 
 
 def _as_number_strings(value: Any) -> List[str]:

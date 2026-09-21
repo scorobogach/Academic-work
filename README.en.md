@@ -16,7 +16,7 @@ verifiable claims, and session-to-session memory.
 ## Quick start
 
 ```bash
-make test                                   # 71 tests, stdlib only, Python 3.9+
+make test                                   # 94 tests, stdlib only, Python 3.9+
 make init                                   # ~/.academic/journal.db + journal/
 python3 scripts/install_mcp.py --agent all  # Claude Code | Cursor | Codex CLI
 make gates MANUSCRIPT=examples/minimal/main.tex BIB=examples/minimal/refs.bib \
@@ -36,6 +36,7 @@ make resume                                 # context pack for the next session
 | G5 `numbers` | every number in prose **and in tables** traced back to `results.json` | script | configurable |
 | G6 `reproducibility` | tables and figures rebuilt from raw data with one command | `make reproduce` | yes |
 | G7 `disclosure` | AI-use log, disclosure section, conflict of interest, human sign-off | `make disclosure` + human | yes |
+| G8 `figures` | figure file exists, caption and label present, numbers traced, figure newer than data | script | yes |
 | GX `canary` | recall of the gate pipeline itself: injected false claims must be caught | script | yes if recall < 0.8 |
 
 Plus a monthly **canary test** (`make canary-run`): 5 false claims, 3 fake references and
@@ -43,7 +44,8 @@ one untraced number are injected into a copy of the draft, then recall is comput
 Recall < 0.8 blocks: the green status of the gates stops counting.
 
 Other commands: `make export` (registries to CSV/Markdown), `make disclosure`
-(AI-use section generated from the journal log), `make gate-quote` (one-off quote check).
+(AI-use section generated from the journal log), `make gate-quote` (one-off quote check),
+`make bib-import` / `make bib-export` (sync .bib with the evidence registry).
 
 ## Architecture in one table
 

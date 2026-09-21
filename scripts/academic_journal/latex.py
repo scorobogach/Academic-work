@@ -93,6 +93,9 @@ def extract_numbers(text: str, drop_commands: bool = True) -> List[Dict[str, str
             "value": _normalize_number(raw),
             "raw": raw,
             "context": " ".join(cleaned[left:m.end() + 60].split()),
+            # узкое окно для эвристик «число относится к рисунку/таблице»:
+            # справа только 8 символов, иначе любое число рядом с «рисунок» пропадает из проверки
+            "near": cleaned[max(0, m.start() - 40):m.end() + 8],
             "offset": m.start(),
         })
     return out
