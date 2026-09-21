@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/scorobogach/Academic-work/schemas/gate-run.schema.json",
+  "title": "GateRun",
+  "description": "Результат прогона гейта. Отчёт на диске + запись в БД: «проверено» должно быть файлом, а не утверждением.",
+  "type": "object",
+  "required": ["gate", "verdict"],
+  "additionalProperties": false,
+  "properties": {
+    "run_id": { "type": "string", "description": "ULID, генерируется при отсутствии" },
+    "project": { "type": "string" },
+    "gate": {
+      "type": "string",
+      "enum": ["G0_hygiene", "G1_style", "G2_fidelity", "G3_bibliography",
+               "G4_claim_alignment", "G5_numbers", "G6_reproducibility", "G7_disclosure"]
+    },
+    "started_at": { "type": "string", "format": "date-time" },
+    "verdict": { "type": "string", "enum": ["pass", "warn", "fail"] },
+    "blocking": { "type": "boolean", "description": "Блокирует ли переход к следующей стадии" },
+    "inputs_sha": { "type": "string", "description": "sha256 проверяемого входа" },
+    "checks": {
+      "type": "array",
+      "description": "Список проверок с результатами и порогами",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "result": { "type": ["string", "number", "boolean"] },
+          "threshold": { "type": ["string", "number"] },
+          "blocking": { "type": "boolean" }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "gate": { "type": "string" },
+          "code": { "type": "string" },
+          "severity": { "type": "string", "enum": ["error", "warning", "info"] },
+          "message": { "type": "string" },
+          "locator": { "type": "string" },
+          "hint": { "type": "string" }
+        }
+      }
+    },
+    "cost_usd": { "type": "number", "minimum": 0 },
+    "duration_ms": { "type": "integer", "minimum": 0 },
+    "artifact": { "type": "string", "description": "Путь к JSON-отчёту" },
+    "human_ack": { "type": "boolean", "description": "Человек ознакомился с результатом" }
+  }
+}

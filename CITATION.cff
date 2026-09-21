@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "Если этот репозиторий полезен в вашей работе — укажите ссылку на него."
+title: "Academic-work: журнал, проверяемость и память для научной работы с ИИ-ассистентами"
+abstract: >-
+  Инфраструктура для научной работы с ИИ-ассистентами: неизменяемый журнал диалогов
+  и действий, реестры evidence/claims/decisions, детерминированные quality-gates
+  (гигиена текста, стиль, библиография, трассировка чисел) и контекст-пак для
+  продолжения работы между сессиями.
+authors:
+  - name: "scorobogach"
+    url: "https://github.com/scorobogach"
+repository-code: "https://github.com/scorobogach/Academic-work"
+url: "https://github.com/scorobogach/Academic-work"
+keywords:
+  - academic-writing
+  - research-integrity
+  - reproducibility
+  - model-context-protocol
+  - agent-memory
+  - provenance
+  - citation-verification
+license: MIT
+version: 0.1.0
+date-released: "2026-09-21"

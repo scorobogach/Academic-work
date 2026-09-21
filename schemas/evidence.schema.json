@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/scorobogach/Academic-work/schemas/evidence.schema.json",
+  "title": "Evidence",
+  "description": "Источник: существует ли он, откуда получен и насколько ему можно доверять.",
+  "type": "object",
+  "required": ["source_id"],
+  "additionalProperties": false,
+  "properties": {
+    "source_id": { "type": "string", "minLength": 1 },
+    "doi": { "type": "string" },
+    "pmid": { "type": "string" },
+    "arxiv": { "type": "string" },
+    "url": { "type": "string" },
+    "citation": { "type": "string", "description": "Полная ссылка в человеческом виде" },
+    "year": { "type": "string" },
+    "type": {
+      "type": "string",
+      "enum": ["article", "preprint", "book", "chapter", "dataset", "report", "thesis", "gray", "other"]
+    },
+    "trust_tier": {
+      "type": "string",
+      "enum": ["primary", "secondary", "preprint", "gray"],
+      "description": "primary — первичная публикация; secondary — обзор/пересказ; preprint — без рецензирования; gray — без DOI и рецензирования"
+    },
+    "retrieved_at": { "type": "string", "format": "date-time" },
+    "retriever": { "type": "string", "description": "human | tool:citecheck | tool:openalex | ..." },
+    "pdf_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "local_path": { "type": "string" },
+    "access": { "type": "string", "enum": ["OA", "subscription", "requested", "unavailable"] },
+    "license": { "type": "string" },
+    "metadata_verified": { "type": "integer", "enum": [0, 1] },
+    "notes": { "type": "string" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}

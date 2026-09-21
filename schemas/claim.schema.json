@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/scorobogach/Academic-work/schemas/claim.schema.json",
+  "title": "Claim",
+  "description": "Проверяемое утверждение из рукописи. Правило: нет источника — нет утверждения.",
+  "type": "object",
+  "required": ["claim_id", "text"],
+  "additionalProperties": false,
+  "properties": {
+    "claim_id": { "type": "string", "minLength": 1 },
+    "project": { "type": "string" },
+    "section": { "type": "string", "description": "Раздел рукописи" },
+    "text": { "type": "string", "minLength": 3, "description": "Утверждение verbatim из рукописи" },
+    "assertion_type": {
+      "type": "string",
+      "enum": ["empirical", "methodological", "interpretive", "background", "numeric"]
+    },
+    "source_id": { "type": "string", "description": "Ссылка на evidence.source_id" },
+    "quote": { "type": "string", "description": "Цитата из источника, слово в слово" },
+    "quote_locator": { "type": "string", "description": "p.7, ¶2, line 142 — обязателен для empirical" },
+    "verbatim_match": { "type": "string", "enum": ["exact", "normalized", "mismatch"] },
+    "verdict": {
+      "type": "string",
+      "enum": ["supported", "partially_supported", "not_addressed", "unverifiable",
+               "self_computed", "contradicted"],
+      "default": "unverifiable"
+    },
+    "checked_by": { "type": "string", "enum": ["tool", "model", "human"] },
+    "checked_at": { "type": "string", "format": "date-time" },
+    "evidence_sha": { "type": "string", "description": "sha256 файла источника" },
+    "gate_run_id": { "type": "string" },
+    "status": { "type": "string", "enum": ["open", "blocking", "resolved", "dropped"], "default": "open" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "notes": { "type": "string" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "assertion_type": { "const": "empirical" } }, "required": ["assertion_type"] },
+      "then": { "required": ["source_id", "quote_locator"] }
+    }
+  ]
+}

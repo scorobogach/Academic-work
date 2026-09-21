@@ -1,0 +1,28 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[english,russian]{babel}
+
+\title{Пример рукописи для проверки гейтов}
+\author{Автор}
+
+\begin{document}
+\maketitle
+
+\section{Введение}
+Настоящая работа посвящена воспроизводимости вычислительных экспериментов.
+Мы опираемся на открытые данные, опубликованные ранее \cite{smith2020},
+и сопоставляем их с собственными измерениями \cite{ivanov2024}.
+
+\section{Методы}
+Выборка включала 42 участника. Критерии включения описаны в реестре протокола.
+Обработка данных выполнялась скриптом \texttt{analysis/run\_all.sh}, версии
+фиксируются в \texttt{analysis/environment.lock}.
+
+\section{Результаты}
+Разница между группами составила 3,1 балла по шкале HAM-D.
+Все таблицы пересчитываются из сырых данных одной командой.
+
+\bibliographystyle{plain}
+\bibliography{refs}
+\end{document}

@@ -1,0 +1,61 @@
+{
+  "$comment": "Пороги и блокирующие условия гейтов. Правится под требования журнала/вуза.",
+  "version": 1,
+  "gates": {
+    "G0_hygiene": {
+      "blocking": true,
+      "blocking_codes": ["HYG-ZERO-WIDTH", "HYG-BIDI"],
+      "note": "Невидимые и bidi-символы — технический брак; удаляются до редактуры."
+    },
+    "G1_style": {
+      "blocking": true,
+      "threshold": 90,
+      "blocking_codes": ["UNSOURCED"],
+      "note": "Порог 90/100 как в anti-ai-slop; UNSOURCED блокирует всегда."
+    },
+    "G2_fidelity": {
+      "blocking": true,
+      "mode": "agent",
+      "checks": ["numbers_unchanged", "citations_unchanged", "caveats_unchanged", "conclusions_unchanged"],
+      "note": "Выполняется вторым агентом: оригинал против правки. Модельный гейт — результат фиксируется вручную через gate-record."
+    },
+    "G3_bibliography": {
+      "blocking": true,
+      "blocking_codes": ["BIB-MISSING", "BIB-DOI-NOT-FOUND", "BIB-TITLE-MISMATCH"],
+      "offline_default": true,
+      "note": "По умолчанию офлайн; --online проверяет DOI через Crossref."
+    },
+    "G4_claim_alignment": {
+      "blocking": true,
+      "mode": "agent",
+      "require_locator": true,
+      "require_verbatim_match": true,
+      "blocking_verdicts": ["not_addressed", "unverifiable", "contradicted"],
+      "note": "У фактического утверждения должен быть source_id, локатор (страница/абзац) и вердикт supported."
+    },
+    "G5_numbers": {
+      "blocking": false,
+      "allow": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "2026", "0.05", "0.01", "95"],
+      "ignore_context": ["рисун", "рис\\.", "табл", "таблица", "рисунок", "figure", "table", "приложен", "ГОСТ", "№"],
+      "note": "По умолчанию предупреждение. Перед сдачей сделайте blocking=true."
+    },
+    "G6_reproducibility": {
+      "blocking": true,
+      "mode": "external",
+      "commands": ["make reproduce"],
+      "require": ["data_manifest_sha256", "environment_lock", "seed", "figures_rebuilt"],
+      "note": "Рукопись не собирается, пока все таблицы и фигуры не пересобраны из сырых данных."
+    },
+    "G7_disclosure": {
+      "blocking": true,
+      "mode": "human",
+      "require": ["ai_use_log", "disclosure_section", "conflict_of_interest", "sign_off"],
+      "note": "Человеческая подпись обязательна."
+    }
+  },
+  "policy": {
+    "no_source_no_claim": true,
+    "summary_is_not_truth": true,
+    "journal_is_immutable": true
+  }
+}
