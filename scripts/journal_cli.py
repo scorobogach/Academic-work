@@ -16,6 +16,12 @@
   python3 scripts/journal_cli.py evidence --file source.json
   python3 scripts/journal_cli.py decision --file decision.json
   python3 scripts/journal_cli.py gate-record --file gate.json
+  python3 scripts/journal_cli.py gate-quote --source literature/smith2020.pdf --quote-file q.txt --locator "p.7"
+  python3 scripts/journal_cli.py run-gate G4 --db ~/.academic/journal.db --project thesis
+  python3 scripts/journal_cli.py export --out export --what all --format both
+  python3 scripts/journal_cli.py canary --file draft.md --seed 42
+  python3 scripts/journal_cli.py canary-check --manifest draft.canary.json --g1 r/G1.json --g3 r/G3.json --g5 r/G5.json
+  python3 scripts/journal_cli.py disclosure --out ai-disclosure.md
 """
 from __future__ import annotations
 
@@ -27,7 +33,16 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from academic_journal import db, gates as gates_mod, latex, resume as resume_mod  # noqa: E402
+from academic_journal import (  # noqa: E402
+    canary as canary_mod,
+    db,
+    disclosure as disclosure_mod,
+    export as export_mod,
+    gates as gates_mod,
+    latex,
+    quote as quote_mod,
+    resume as resume_mod,
+)
 from academic_journal.journal import Journal, ulid  # noqa: E402
 
 DEFAULT_DB = os.path.expanduser("~/.academic/journal.db")
@@ -130,6 +145,9 @@ def cmd_run_gate(args) -> int:
         values = latex.load_values(args.values) if args.values else None
         kind = "tex" if (args.file or "").endswith(".tex") else "md"
         result = gates_mod.check_numbers(text, values, gates_mod.load_policy(args.policy), kind=kind)
+    elif gate == "G4":
+        result = quote_mod.check_claims(conn, args.project if args.project else None,
+                                        policy=gates_mod.load_policy(args.policy))
     else:
         print("Гейт %s не детерминированный: G2/G4/G6/G7 выполняются агентом или человеком, "
               "результат фиксируется через `gate-record`" % gate, file=sys.stderr)
@@ -218,6 +236,127 @@ def cmd_extract(args) -> int:
     return 0
 
 
+def cmd_gate_quote(args) -> int:
+    """Разовая verbatim-проверка цитаты (без реестра)."""
+    quote = args.quote
+    if args.quote_file:
+        with open(os.path.expanduser(args.quote_file), encoding="utf-8") as fh:
+            quote = fh.read()
+    if not quote:
+        print("нужна цитата: --quote TEXT или --quote-file FILE", file=sys.stderr)
+        return 2
+    check = quote_mod.check_quote(quote, args.source, args.locator)
+    if args.json:
+        print(json.dumps(check.to_dict(), ensure_ascii=False, indent=2))
+    else:
+        print("совпадение: %s (ratio %.2f)" % (check.match, check.ratio))
+        print("источник:   %s [%s]" % (args.source, check.method))
+        if check.page:
+            print("страница:   %s%s" % (check.page,
+                                        " (в локаторе указано %s)" % check.expected_page
+                                        if check.expected_page else ""))
+        if check.window:
+            print("фрагмент:   %s" % check.window[:300])
+        if check.note:
+            print("примечание: %s" % check.note)
+        if args.record:
+            conn = db.connect(args.db)
+            db.record_gate(conn, {
+                "run_id": ulid(),
+                "project": args.project or os.environ.get("ACADEMIC_PROJECT") or "default",
+                "gate": "G4_claim_alignment",
+                "verdict": "pass" if check.match in ("exact", "normalized") else "fail",
+                "blocking": check.match in ("mismatch", "unverifiable"),
+                "checks": [{"name": "verbatim_match", "result": check.match,
+                            "threshold": "exact|normalized", "blocking": True}],
+                "artifact": args.source,
+            })
+    return 0 if check.match in ("exact", "normalized") else 1
+
+
+def cmd_export(args) -> int:
+    conn = db.connect(args.db)
+    created = export_mod.export(conn, args.out, args.what, args.format, args.project)
+    for path in created:
+        print(path)
+    return 0
+
+
+def cmd_canary(args) -> int:
+    with open(os.path.expanduser(args.file), encoding="utf-8") as fh:
+        text = fh.read()
+    kind = "tex" if (args.file or "").endswith(".tex") else "md"
+    counts = {"unsourced": args.unsourced, "references": args.references,
+              "numbers": args.numbers}
+    injected, manifest = canary_mod.inject(text, kind=kind, seed=args.seed, counts=counts)
+    text_path = args.out or _default_canary_path(args.file)
+    manifest_path = args.manifest or (os.path.splitext(os.path.expanduser(args.file))[0] + ".canary.json")
+    with open(text_path, "w", encoding="utf-8") as fh:
+        fh.write(injected)
+    with open(manifest_path, "w", encoding="utf-8") as fh:
+        json.dump(manifest, fh, ensure_ascii=False, indent=2)
+    print("подмешано элементов: %d" % len(manifest["items"]))
+    print("текст с канарками:   %s" % text_path)
+    print("манифест:            %s" % manifest_path)
+    print("")
+    print("дальше прогоните гейты по этому файлу и запустите canary-check:")
+    print("  python3 scripts/journal_cli.py canary-check --manifest %s \\" % manifest_path)
+    print("      --g1 reports/gates/G1-style.json --g3 reports/gates/G3-bibliography.json \\")
+    print("      --g5 reports/gates/G5-numbers.json")
+    return 0
+
+
+def _default_canary_path(path: str) -> str:
+    base, ext = os.path.splitext(path)
+    return base + ".canary" + ext
+
+
+def cmd_canary_check(args) -> int:
+    with open(os.path.expanduser(args.manifest), encoding="utf-8") as fh:
+        manifest = json.load(fh)
+    reports = {}
+    for gate, path in (("G1", args.g1), ("G3", args.g3), ("G5", args.g5)):
+        if path:
+            reports[gate] = path
+    if not reports:
+        print("нужен хотя бы один отчёт: --g1/--g3/--g5", file=sys.stderr)
+        return 2
+    report = canary_mod.evaluate(manifest, reports, threshold=args.threshold)
+    if args.json:
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+    else:
+        print(canary_mod.render_markdown(report))
+    if args.record:
+        conn = db.connect(args.db)
+        db.record_gate(conn, {
+            "run_id": ulid(),
+            "project": args.project or os.environ.get("ACADEMIC_PROJECT") or "default",
+            "gate": "GX_canary",
+            "verdict": report["verdict"],
+            "blocking": report["verdict"] == "fail",
+            "checks": [{"name": "canary_recall", "result": report["recall"],
+                        "threshold": args.threshold, "blocking": True}],
+            "artifact": args.manifest,
+        })
+    return 0 if report["verdict"] == "pass" else 1
+
+
+def cmd_disclosure(args) -> int:
+    journal, conn = _journal_and_conn(args)
+    result = disclosure_mod.build(journal)
+    text = result["markdown"]
+    if args.out:
+        with open(os.path.expanduser(args.out), "w", encoding="utf-8") as fh:
+            fh.write(text)
+        print("written: %s" % args.out)
+    else:
+        print(text)
+    if not result["ok"]:
+        print("Замечания: %d — disclosure не готов к сдаче" % len(result["warnings"]),
+              file=sys.stderr)
+    return 0 if result["ok"] else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="journal_cli", description="Academic-work: журнал, реестры и гейты")
     p.add_argument("--db", default=DEFAULT_DB)
@@ -253,8 +392,47 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--out", help="сохранить контекст-пак в файл")
     r.set_defaults(func=cmd_resume)
 
+    q = sub.add_parser("gate-quote", help="G4: verbatim-сверка цитаты с источником")
+    q.add_argument("--source", required=True, help="PDF/TXT/MD источника")
+    q.add_argument("--quote", help="текст цитаты")
+    q.add_argument("--quote-file", help="файл с цитатой")
+    q.add_argument("--locator", default="", help="локатор: p.7, с. 7, 7")
+    q.add_argument("--record", action="store_true", help="записать прогон в БД")
+    q.add_argument("--json", action="store_true")
+    q.set_defaults(func=cmd_gate_quote)
+
+    x = sub.add_parser("export", help="экспорт реестров в CSV/Markdown")
+    x.add_argument("--out", default="export", help="каталог")
+    x.add_argument("--what", default="all", choices=["all", "evidence", "claims", "decisions", "gates"])
+    x.add_argument("--format", default="both", choices=["csv", "md", "both"], dest="format")
+    x.set_defaults(func=cmd_export)
+
+    cn = sub.add_parser("canary", help="подмешать ложные элементы в копию черновика")
+    cn.add_argument("--file", required=True)
+    cn.add_argument("--out", help="куда записать текст с канарками")
+    cn.add_argument("--manifest", help="куда записать манифест")
+    cn.add_argument("--seed", type=int, default=42)
+    cn.add_argument("--unsourced", type=int, default=5)
+    cn.add_argument("--references", type=int, default=3)
+    cn.add_argument("--numbers", type=int, default=1)
+    cn.set_defaults(func=cmd_canary)
+
+    cc = sub.add_parser("canary-check", help="посчитать recall контура по отчётам гейтов")
+    cc.add_argument("--manifest", required=True)
+    cc.add_argument("--g1", help="отчёт G1_style")
+    cc.add_argument("--g3", help="отчёт G3_bibliography")
+    cc.add_argument("--g5", help="отчёт G5_numbers")
+    cc.add_argument("--threshold", type=float, default=0.8)
+    cc.add_argument("--record", action="store_true", help="записать прогон в БД")
+    cc.add_argument("--json", action="store_true")
+    cc.set_defaults(func=cmd_canary_check)
+
+    d = sub.add_parser("disclosure", help="собрать раздел «Использование ИИ» из журнала")
+    d.add_argument("--out", help="файл для готового раздела")
+    d.set_defaults(func=cmd_disclosure)
+
     g = sub.add_parser("run-gate")
-    g.add_argument("gate", choices=["G0", "G1", "G3", "G5"])
+    g.add_argument("gate", choices=["G0", "G1", "G3", "G4", "G5"])
     g.add_argument("--file", help="файл рукописи (.tex/.md) для G0/G1/G5")
     g.add_argument("--tex", help="корневой .tex для G3")
     g.add_argument("--bib", help=".bib для G3")

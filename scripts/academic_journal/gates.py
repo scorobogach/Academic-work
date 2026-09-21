@@ -346,6 +346,19 @@ def check_numbers(text: str, values: Optional[Dict[str, Any]] = None, policy: Op
         findings.append(Finding(gate, "NUM-UNUSED", "info",
                                 "результат %s не упомянут в тексте" % value, "", ""))
 
+    table_untraced = 0
+    if bool(cfg.get("check_tables", True)):
+        for block in latex.extract_table_blocks(text):
+            for item in latex.extract_numbers(block):
+                if any(rx.search(item["context"]) for rx in ignored_context):
+                    continue
+                if item["value"] not in allowed_values:
+                    table_untraced += 1
+                    findings.append(Finding(gate, "NUM-TABLE-UNTRACED", "warning",
+                                            "число %s в таблице не найдено в results.json" % item["value"],
+                                            "offset:%d" % item["offset"],
+                                            "перегенерируйте таблицу из данных или добавьте значение"))
+
     verdict = "pass" if not unmatched else "warn"
     return GateResult(
         gate="G5_numbers",
@@ -353,6 +366,7 @@ def check_numbers(text: str, values: Optional[Dict[str, Any]] = None, policy: Op
         blocking=bool(cfg.get("blocking", False)),
         findings=findings[:300],
         stats={"numbers_in_text": len(found), "untraced": len(unmatched),
+               "untraced_in_tables": table_untraced,
                "declared_values": len(allowed_values), "has_results": bool(values)},
         duration_ms=int((_timer() - started) * 1000),
         inputs_sha=_sha256_text(text),

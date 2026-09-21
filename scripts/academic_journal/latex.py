@@ -16,10 +16,12 @@ _BIBITEM = re.compile(r"\\bibitem(?:\[[^\]]*\])?\{([^}]*)\}")
 _INCLUDE = re.compile(r"\\(?:input|include)\{([^}]*)\}")
 _VERBATIM = re.compile(r"\\begin\{(?:verbatim|lstlisting|minted)\}.*?\\end\{(?:verbatim|lstlisting|minted)\}", re.S)
 _MATH = re.compile(r"\$[^$]*\$|\\\\[\(\[](?:.|\n)*?\\\\[\)\]]")
-_NUMBER = re.compile(r"(?<![\w.])[-+]?\d[\d\s]{0,3}(?:[.,]\d+)?\s*(?:%|\\%)?")
+_NUMBER = re.compile(r"(?<![\w.])[-+]?\d(?:[\d\s]*\d)?(?:[.,]\d+)?\s*(?:%|\\%)?")
 _BIB_ENTRY = re.compile(r"@(\w+)\s*\{\s*([^,]+),", re.M)
 _BIB_FIELD = re.compile(r"(\w+)\s*=\s*\{((?:[^{}]|\{[^{}]*\})*)\}", re.S)
 _SECTION = re.compile(r"\\(?:section|subsection|subsubsection)\*?\{([^}]*)\}")
+_TABLE_ENV = re.compile(r"\\begin\{(tabular|tabularx|longtable|array)\*?\}.*?\\end\{\1\*?\}", re.S)
+_MD_TABLE_ROW = re.compile(r"^\s*\|.*\|\s*$", re.M)
 
 
 def read_text(path: str) -> str:
@@ -117,6 +119,22 @@ def parse_bib(path: str) -> Dict[str, Dict[str, str]]:
         fields["entry_type"] = m.group(1).lower()
         entries[m.group(2).strip()] = fields
     return entries
+
+
+def extract_table_blocks(text: str) -> List[str]:
+    """Таблицы: LaTeX-окружения и Markdown-таблицы (по строкам со |)."""
+    blocks = [m.group(0) for m in _TABLE_ENV.finditer(text)]
+    md_blocks, current = [], []
+    for line in text.splitlines():
+        if _MD_TABLE_ROW.match(line):
+            current.append(line)
+        elif current:
+            if len(current) >= 2:
+                md_blocks.append("\n".join(current))
+            current = []
+    if len(current) >= 2:
+        md_blocks.append("\n".join(current))
+    return blocks + md_blocks
 
 
 def sha256_file(path: str) -> str:

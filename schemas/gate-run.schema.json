@@ -12,7 +12,8 @@
     "gate": {
       "type": "string",
       "enum": ["G0_hygiene", "G1_style", "G2_fidelity", "G3_bibliography",
-               "G4_claim_alignment", "G5_numbers", "G6_reproducibility", "G7_disclosure"]
+               "G4_claim_alignment", "G5_numbers", "G6_reproducibility", "G7_disclosure",
+               "GX_canary"]
     },
     "started_at": { "type": "string", "format": "date-time" },
     "verdict": { "type": "string", "enum": ["pass", "warn", "fail"] },

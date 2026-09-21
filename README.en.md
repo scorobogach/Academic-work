@@ -16,7 +16,7 @@ verifiable claims, and session-to-session memory.
 ## Quick start
 
 ```bash
-make test                                   # 40 tests, stdlib only, Python 3.9+
+make test                                   # 71 tests, stdlib only, Python 3.9+
 make init                                   # ~/.academic/journal.db + journal/
 python3 scripts/install_mcp.py --agent all  # Claude Code | Cursor | Codex CLI
 make gates MANUSCRIPT=examples/minimal/main.tex BIB=examples/minimal/refs.bib \
@@ -32,13 +32,18 @@ make resume                                 # context pack for the next session
 | G1 `style` | filler phrases, unsourced claims, rhythm, em dashes (threshold 90/100) | script | yes |
 | G2 `fidelity` | numbers, quotes, caveats, conclusions unchanged after editing | second agent | yes |
 | G3 `bibliography` | every reference exists, has DOI/URL, complete metadata; optional Crossref check | script | yes |
-| G4 `claim_alignment` | every claim has a source, a locator (page/paragraph) and a verbatim quote match | agent + human | yes |
-| G5 `numbers` | every number traced back to `results.json` | script | configurable |
+| G4 `claim_alignment` | every claim has a source, a locator (page/paragraph) and a verbatim quote match | script + human | yes |
+| G5 `numbers` | every number in prose **and in tables** traced back to `results.json` | script | configurable |
 | G6 `reproducibility` | tables and figures rebuilt from raw data with one command | `make reproduce` | yes |
-| G7 `disclosure` | AI-use log, disclosure section, conflict of interest, human sign-off | human | yes |
+| G7 `disclosure` | AI-use log, disclosure section, conflict of interest, human sign-off | `make disclosure` + human | yes |
+| GX `canary` | recall of the gate pipeline itself: injected false claims must be caught | script | yes if recall < 0.8 |
 
-Plus a monthly **canary test**: 5 false claims and 3 fake references are injected;
-if the gates miss them, their green status stops counting.
+Plus a monthly **canary test** (`make canary-run`): 5 false claims, 3 fake references and
+one untraced number are injected into a copy of the draft, then recall is computed.
+Recall < 0.8 blocks: the green status of the gates stops counting.
+
+Other commands: `make export` (registries to CSV/Markdown), `make disclosure`
+(AI-use section generated from the journal log), `make gate-quote` (one-off quote check).
 
 ## Architecture in one table
 

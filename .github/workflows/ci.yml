@@ -56,6 +56,23 @@ jobs:
       - name: Целостность журнала
         run: python3 scripts/journal_cli.py verify --db /tmp/j.db --journal-dir /tmp/j
 
+  canary:
+    name: Canary-тест контура
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Подмешать ложные элементы, прогнать гейты, посчитать recall
+        run: |
+          cp examples/minimal/main.tex examples/minimal/refs.bib /tmp/
+          make canary-run MANUSCRIPT=/tmp/main.tex BIB=/tmp/refs.bib \
+               VALUES=examples/minimal/analysis/results.json DB=/tmp/canary.db PROJECT=ci
+      - name: Отчёт по канаркам
+        if: always()
+        run: cat reports/gates/canary-G1.json || true
+
   selfcheck:
     name: Самопроверка документации
     runs-on: ubuntu-latest

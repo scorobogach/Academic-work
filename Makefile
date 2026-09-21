@@ -10,9 +10,17 @@ MANUSCRIPT ?= manuscript/main.tex
 BIB        ?= manuscript/refs.bib
 VALUES     ?= analysis/results.json
 REPORTS    := reports/gates
+EXPORT_DIR ?= export
+CANARY_SEED ?= 42
+CANARY_MANIFEST ?= $(basename $(MANUSCRIPT)).canary.json
+DISCLOSURE ?= ai-disclosure.md
+SOURCE     ?= literature/source.pdf
+QUOTE      ?= ""
+LOCATOR    ?= ""
 
 .PHONY: help init resume journal-verify gates gate-hygiene gate-style gate-bib gate-numbers \
-        gate-bib-online reproduce test clean
+        gate-bib-online gate-claims gate-quote export canary canary-check disclosure \
+        reproduce test clean
 
 help: ## показать справку
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -48,10 +56,45 @@ gate-bib-online: ## G3: библиография с проверкой DOI че�
 	$(CLI) run-gate G3 --db $(DB) --project $(PROJECT) --tex $(MANUSCRIPT) --bib $(BIB) --online \
 		--report $(REPORTS)/G3-bibliography.json --record
 
-gate-numbers: ## G5: трассировка чисел на results.json
+gate-numbers: ## G5: трассировка чисел на results.json (текст + таблицы)
 	@mkdir -p $(REPORTS)
 	$(CLI) run-gate G5 --db $(DB) --project $(PROJECT) --file $(MANUSCRIPT) --values $(VALUES) \
 		--report $(REPORTS)/G5-numbers.json --record
+
+gate-claims: ## G4: verbatim-сверка цитат реестра с файлами источников
+	@mkdir -p $(REPORTS)
+	$(CLI) run-gate G4 --db $(DB) --project $(PROJECT) \
+		--report $(REPORTS)/G4-claims.json --record
+
+gate-quote: ## G4: разовая проверка одной цитаты (QUOTE=текст SOURCE=файл)
+	$(CLI) gate-quote --db $(DB) --project $(PROJECT) --source $(SOURCE) --quote "$(QUOTE)" \
+		--locator "$(LOCATOR)" --record
+
+export: ## экспорт реестров в CSV/Markdown
+	$(CLI) export --db $(DB) --project $(PROJECT) --out $(EXPORT_DIR) --what all --format both
+
+canary: ## подмешать ложные элементы в копию черновика
+	$(CLI) canary --file $(MANUSCRIPT) --seed $(CANARY_SEED)
+
+CANARY_FILE ?= $(basename $(MANUSCRIPT)).canary$(suffix $(MANUSCRIPT))
+
+canary-run: ## полный цикл: подмешать канарки → прогнать гейты → посчитать recall
+	$(CLI) canary --file $(MANUSCRIPT) --seed $(CANARY_SEED)
+	@mkdir -p $(REPORTS)
+	-$(CLI) run-gate G1 --db $(DB) --project $(PROJECT) --file $(CANARY_FILE) --report $(REPORTS)/canary-G1.json
+	-$(CLI) run-gate G3 --db $(DB) --project $(PROJECT) --tex $(CANARY_FILE) --bib $(BIB) --report $(REPORTS)/canary-G3.json
+	-$(CLI) run-gate G5 --db $(DB) --project $(PROJECT) --file $(CANARY_FILE) --values $(VALUES) --report $(REPORTS)/canary-G5.json
+	$(CLI) canary-check --db $(DB) --project $(PROJECT) --manifest $(CANARY_MANIFEST) \
+		--g1 $(REPORTS)/canary-G1.json --g3 $(REPORTS)/canary-G3.json \
+		--g5 $(REPORTS)/canary-G5.json --record
+
+canary-check: ## посчитать recall контура по отчётам гейтов
+	$(CLI) canary-check --db $(DB) --project $(PROJECT) --manifest $(CANARY_MANIFEST) \
+		--g1 $(REPORTS)/G1-style.json --g3 $(REPORTS)/G3-bibliography.json \
+		--g5 $(REPORTS)/G5-numbers.json --record
+
+disclosure: ## собрать раздел «Использование ИИ» из журнала
+	$(CLI) disclosure --db $(DB) --journal-dir $(JOURNAL) --out $(DISCLOSURE)
 
 fix-hygiene: ## удалить невидимые символы (с .bak)
 	$(CLI) hygiene --file $(MANUSCRIPT) --fix
